@@ -538,8 +538,15 @@ GtkWidget* NotepadPlusGtk::buildStatusBar() {
 GtkWidget* NotepadPlusGtk::makeTabLabel(const std::string& title, int docIdx) {
     GtkWidget* hbox  = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 4);
     GtkWidget* label = gtk_label_new(title.c_str());
+    // Set width_chars to the actual title length (capped at 128) so the
+    // label's minimum allocated width equals its content.  This is the only
+    // reliable way to make GTK3 scrollable notebooks size tabs dynamically:
+    // without it, ellipsized labels have a near-zero minimum and collapse to
+    // "..." regardless of the actual text.
+    int wchars = std::max(1, std::min((int)title.size(), 128));
+    gtk_label_set_width_chars(GTK_LABEL(label), wchars);
+    gtk_label_set_max_width_chars(GTK_LABEL(label), 128);
     gtk_label_set_ellipsize(GTK_LABEL(label), PANGO_ELLIPSIZE_END);
-    gtk_label_set_max_width_chars(GTK_LABEL(label), 24);
 
     GtkWidget* closeBtn = gtk_button_new();
     gtk_button_set_relief(GTK_BUTTON(closeBtn), GTK_RELIEF_NONE);
@@ -631,10 +638,14 @@ int NotepadPlusGtk::newDocument() {
     _docs.push_back(doc);
 
     int idx = (int)_docs.size() - 1;
-    GtkWidget* label = makeTabLabel(doc.tabTitle, idx);
+    GtkWidget* tabBox = makeTabLabel(doc.tabTitle, idx);
+    // Store the GtkLabel pointer directly so updateTabLabel never has to
+    // traverse GTK internals to find it.
+    _docs[idx].tabLabelWidget =
+        GTK_WIDGET(g_object_get_data(G_OBJECT(tabBox), "npp-tab-label"));
 
     gtk_notebook_append_page(GTK_NOTEBOOK(_notebook),
-                              view->getWidget(), label);
+                              view->getWidget(), tabBox);
     gtk_notebook_set_tab_reorderable(GTK_NOTEBOOK(_notebook),
                                      view->getWidget(), TRUE);
     gtk_widget_show(view->getWidget());
@@ -901,12 +912,17 @@ void NotepadPlusGtk::updateTabLabel(int idx) {
 
     GtkWidget* page = gtk_notebook_get_nth_page(GTK_NOTEBOOK(_notebook), idx);
     if (!page) return;
-    GtkWidget* tabBox = gtk_notebook_get_tab_label(GTK_NOTEBOOK(_notebook), page);
-    if (!tabBox) return;
 
-    GtkWidget* lbl = GTK_WIDGET(g_object_get_data(G_OBJECT(tabBox), "npp-tab-label"));
-    if (lbl)
-        gtk_label_set_text(GTK_LABEL(lbl), title.c_str());
+    // Replace the entire tab-label widget instead of just updating the text.
+    // gtk_label_set_text alone does NOT cause GTK3 scrollable notebooks to
+    // recalculate the tab's allocated width, so a short initial title ("new 1")
+    // would leave the tab permanently narrow and collapse the filename to "...".
+    // Replacing the widget forces a fresh size negotiation every time.
+    GtkWidget* newTabBox = makeTabLabel(title, idx);
+    d->tabLabelWidget =
+        GTK_WIDGET(g_object_get_data(G_OBJECT(newTabBox), "npp-tab-label"));
+    gtk_notebook_set_tab_label(GTK_NOTEBOOK(_notebook), page, newTabBox);
+    gtk_notebook_set_tab_reorderable(GTK_NOTEBOOK(_notebook), page, TRUE);
 }
 
 void NotepadPlusGtk::updateTitle() {

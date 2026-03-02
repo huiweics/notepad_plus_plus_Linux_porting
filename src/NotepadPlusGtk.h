@@ -16,13 +16,14 @@
 #include "MacroManager.h"
 
 struct Document {
-    ScintillaView* view        = nullptr;
-    std::string    filePath;              // empty = untitled
-    std::string    tabTitle;              // shown in tab
-    bool           modified    = false;
-    LexerType      lexerType   = LexerType::None;
-    std::string    encoding    = "UTF-8"; // detected on open
-    GFileMonitor*  fileMonitor = nullptr; // Phase 3: external change detection
+    ScintillaView* view           = nullptr;
+    std::string    filePath;                   // empty = untitled
+    std::string    tabTitle;                   // shown in tab
+    GtkWidget*     tabLabelWidget = nullptr;   // the GtkLabel inside the tab hbox
+    bool           modified       = false;
+    LexerType      lexerType      = LexerType::None;
+    std::string    encoding       = "UTF-8";   // detected on open
+    GFileMonitor*  fileMonitor    = nullptr;   // Phase 3: external change detection
 };
 
 class NotepadPlusGtk {
