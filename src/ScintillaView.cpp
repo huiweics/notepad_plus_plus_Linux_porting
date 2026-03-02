@@ -295,8 +295,11 @@ void ScintillaView::setShowWhitespace(bool show) {
 
 void ScintillaView::setShowLineNumbers(bool show) {
     if (show) {
-        char buf[16];
-        snprintf(buf, sizeof(buf), "_%d", getLineCount());
+        // Use the actual line count but enforce a minimum of 5 digits so the
+        // margin doesn't look too narrow for small/empty files.
+        int lines = std::max((int)getLineCount(), 99999);
+        char buf[24];
+        snprintf(buf, sizeof(buf), "_%d", lines);
         int w = (int)send(SCI_TEXTWIDTH, STYLE_LINENUMBER, (sptr_t)buf);
         send(SCI_SETMARGINWIDTHN, 0, w);
     } else {

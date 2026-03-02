@@ -555,6 +555,11 @@ GtkWidget* NotepadPlusGtk::makeTabLabel(const std::string& title, int docIdx) {
 
     gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), closeBtn, FALSE, FALSE, 0);
+
+    // Store a direct pointer to the label so updateTabLabel can find it
+    // without relying on gtk_container_get_children ordering.
+    g_object_set_data(G_OBJECT(hbox), "npp-tab-label", label);
+
     gtk_widget_show_all(hbox);
 
     // We close the tab identified by page index
@@ -748,6 +753,11 @@ bool NotepadPlusGtk::loadFileIntoDoc(int idx, const std::string& path) {
     doc.view->setLexerByFilename(path);
     doc.modified = false;
 
+    // Recalculate line-number margin width based on the actual line count now
+    // that the file content is loaded (may be much larger than the default).
+    if (Parameters::getInstance().getSettings().showLineNumbers)
+        doc.view->setShowLineNumbers(true);
+
     Parameters::getInstance().addRecentFile(path);
     rebuildRecentMenu();
 
@@ -894,12 +904,9 @@ void NotepadPlusGtk::updateTabLabel(int idx) {
     GtkWidget* tabBox = gtk_notebook_get_tab_label(GTK_NOTEBOOK(_notebook), page);
     if (!tabBox) return;
 
-    // The first child of the hbox is the label
-    GList* children = gtk_container_get_children(GTK_CONTAINER(tabBox));
-    if (children) {
-        gtk_label_set_text(GTK_LABEL(children->data), title.c_str());
-        g_list_free(children);
-    }
+    GtkWidget* lbl = GTK_WIDGET(g_object_get_data(G_OBJECT(tabBox), "npp-tab-label"));
+    if (lbl)
+        gtk_label_set_text(GTK_LABEL(lbl), title.c_str());
 }
 
 void NotepadPlusGtk::updateTitle() {
