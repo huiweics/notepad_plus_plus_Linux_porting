@@ -1,3 +1,10 @@
+build/CMakeCache.txt
+build/CMakeFiles/
+build/Makefile
+build/cmake_install.cmake
+build/liblexilla_static.a
+build/libscintilla_gtk.a
+build/plugins
 .vscode/
 .idea/
 *.swp

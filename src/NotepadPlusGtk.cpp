@@ -9,6 +9,22 @@
 
 namespace fs = std::filesystem;
 
+// Escape a plain string for use inside Pango markup
+static std::string pangoEscape(const std::string& s) {
+    std::string r;
+    r.reserve(s.size() + 16);
+    for (unsigned char c : s) {
+        switch (c) {
+        case '&':  r += "&amp;";  break;
+        case '<':  r += "&lt;";   break;
+        case '>':  r += "&gt;";   break;
+        case '"':  r += "&quot;"; break;
+        default:   r += (char)c;  break;
+        }
+    }
+    return r;
+}
+
 // ---------------------------------------------------------------------------
 // Phase 4: plugin host globals
 // ---------------------------------------------------------------------------
@@ -158,6 +174,64 @@ void NotepadPlusGtk::init() {
                 if (d.view) total += d.view->replaceAll(find, repl, mc, ww, rx);
             return total;
         });
+
+    _findDlg->setFindAllCb([this](const FindOptions& opts) {
+        auto* d = currentDoc();
+        auto* v = currentView();
+        if (!v) return;
+
+        auto matches = v->findAllMatches(opts.findText,
+                                          opts.matchCase, opts.wholeWord, opts.regex);
+
+        clearResults();
+
+        std::string filename = (d && !d->tabTitle.empty()) ? d->tabTitle : "current file";
+        std::string filePath = d ? d->filePath : "";
+
+        // Dynamic header in the panel title bar (plain text, uses gtk_label_set_text)
+        setResultsHeader("Find \"" + opts.findText + "\"  —  "
+                         + std::to_string(matches.size()) + " match(es) in \""
+                         + filename + "\"");
+
+        // Header row in the list (line=-1 → not clickable) — Pango markup, bold
+        addResultRaw("<b>  Find \""
+                     + pangoEscape(opts.findText) + "\" in \""
+                     + pangoEscape(filename) + "\"  \xe2\x80\x94  "
+                     + std::to_string(matches.size()) + " match(es)</b>",
+                     "", -1);
+
+        for (auto& m : matches) {
+            std::string prefix   = "    Line " + std::to_string(m.line + 1) + ":  ";
+            std::string lineText = m.text;
+
+            // Build Pango markup for the line, highlighting every occurrence of the keyword
+            std::string markupBody;
+            if (!opts.regex && !opts.findText.empty()) {
+                std::string needle   = opts.findText;
+                std::string haystack = lineText;
+                if (!opts.matchCase) {
+                    std::transform(needle.begin(), needle.end(), needle.begin(), ::tolower);
+                    std::transform(haystack.begin(), haystack.end(), haystack.begin(), ::tolower);
+                }
+                size_t pos = 0, found;
+                while ((found = haystack.find(needle, pos)) != std::string::npos) {
+                    markupBody += pangoEscape(lineText.substr(pos, found - pos));
+                    markupBody += "<b><span foreground=\"#FF8C00\">"
+                                + pangoEscape(lineText.substr(found, needle.size()))
+                                + "</span></b>";
+                    pos = found + needle.size();
+                }
+                markupBody += pangoEscape(lineText.substr(pos));
+            } else {
+                // For regex results just escape (exact match bounds not available here)
+                markupBody = pangoEscape(lineText);
+            }
+
+            addResultRaw(pangoEscape(prefix) + markupBody, filePath, m.line);
+        }
+
+        showResultsPanel(true);
+    });
 
     // Find in Files dialog
     _findInFilesDlg = std::make_unique<FindInFilesDlg>(
@@ -1656,10 +1730,10 @@ GtkWidget* NotepadPlusGtk::buildResultsPanel() {
     gtk_widget_set_name(header, "results-header");
     gtk_box_pack_start(GTK_BOX(box), header, FALSE, FALSE, 0);
 
-    GtkWidget* lbl = gtk_label_new("Find in Files Results");
-    gtk_widget_set_margin_start(lbl, 6);
-    gtk_box_pack_start(GTK_BOX(header), lbl, TRUE, TRUE, 0);
-    gtk_widget_set_halign(lbl, GTK_ALIGN_START);
+    _resultsHeaderLabel = gtk_label_new("Search Results");
+    gtk_widget_set_margin_start(_resultsHeaderLabel, 6);
+    gtk_box_pack_start(GTK_BOX(header), _resultsHeaderLabel, TRUE, TRUE, 0);
+    gtk_widget_set_halign(_resultsHeaderLabel, GTK_ALIGN_START);
 
     GtkWidget* closeBtn = gtk_button_new_with_label("✕");
     gtk_button_set_relief(GTK_BUTTON(closeBtn), GTK_RELIEF_NONE);
@@ -1687,7 +1761,7 @@ GtkWidget* NotepadPlusGtk::buildResultsPanel() {
 
     GtkCellRenderer* cell = gtk_cell_renderer_text_new();
     GtkTreeViewColumn* col = gtk_tree_view_column_new_with_attributes(
-        "Result", cell, "text", RES_COL_DISPLAY, nullptr);
+        "Result", cell, "markup", RES_COL_DISPLAY, nullptr);
     gtk_tree_view_append_column(GTK_TREE_VIEW(_resultsView), col);
 
     g_signal_connect(_resultsView, "row-activated",
@@ -1711,10 +1785,10 @@ void NotepadPlusGtk::clearResults() {
 
 void NotepadPlusGtk::addResult(const std::string& path, int line,
                                  const std::string& text) {
-    // Build display string: "filename:line+1  content"
-    std::string display = fs::path(path).filename().string() +
+    // Build display markup: "filename:line+1  content" (plain, escaped for Pango)
+    std::string display = pangoEscape(fs::path(path).filename().string() +
                           ":" + std::to_string(line + 1) +
-                          "  " + text;
+                          "  " + text);
     GtkTreeIter iter;
     gtk_list_store_append(_resultsStore, &iter);
     gtk_list_store_set(_resultsStore, &iter,
@@ -1722,6 +1796,22 @@ void NotepadPlusGtk::addResult(const std::string& path, int line,
                        RES_COL_PATH,    path.c_str(),
                        RES_COL_LINE,    line,
                        -1);
+}
+
+void NotepadPlusGtk::addResultRaw(const std::string& display,
+                                   const std::string& path, int line) {
+    GtkTreeIter iter;
+    gtk_list_store_append(_resultsStore, &iter);
+    gtk_list_store_set(_resultsStore, &iter,
+                       RES_COL_DISPLAY, display.c_str(),
+                       RES_COL_PATH,    path.c_str(),
+                       RES_COL_LINE,    line,
+                       -1);
+}
+
+void NotepadPlusGtk::setResultsHeader(const std::string& text) {
+    if (_resultsHeaderLabel)
+        gtk_label_set_text(GTK_LABEL(_resultsHeaderLabel), text.c_str());
 }
 
 void NotepadPlusGtk::cbResultRowActivated(GtkTreeView* tv, GtkTreePath* path,
@@ -1736,10 +1826,16 @@ void NotepadPlusGtk::cbResultRowActivated(GtkTreeView* tv, GtkTreePath* path,
     gtk_tree_model_get(model, &iter,
                        RES_COL_PATH, &filePath,
                        RES_COL_LINE, &line, -1);
-    if (filePath) {
-        npp->openFileAtLine(filePath, line);
-        g_free(filePath);
+    if (line >= 0) {
+        if (filePath && filePath[0] != '\0') {
+            npp->openFileAtLine(filePath, line);
+        } else {
+            // Unsaved file: jump to line in the currently active view
+            ScintillaView* v = npp->currentView();
+            if (v) { v->gotoLine(line); v->ensureCaretVisible(); }
+        }
     }
+    g_free(filePath);
 }
 
 void NotepadPlusGtk::openFileAtLine(const std::string& path, int line) {
@@ -1757,8 +1853,8 @@ void NotepadPlusGtk::openFileAtLine(const std::string& path, int line) {
 
 void NotepadPlusGtk::cbFindInFiles(GtkMenuItem*, gpointer d) {
     auto* npp = static_cast<NotepadPlusGtk*>(d);
-    // Clear previous results before a new search
     npp->clearResults();
+    npp->setResultsHeader("Find in Files Results");
     npp->_findInFilesDlg->show();
 }
 

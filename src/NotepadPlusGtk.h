@@ -65,10 +65,11 @@ private:
     std::unique_ptr<FindReplaceDlg>   _findDlg;
     std::unique_ptr<FindInFilesDlg>   _findInFilesDlg;
 
-    // Results panel (Find in Files)
-    GtkWidget*   _resultsPanel = nullptr;  // the collapsible bottom panel
-    GtkWidget*   _resultsView  = nullptr;  // GtkTreeView
-    GtkListStore* _resultsStore = nullptr; // model
+    // Results panel (Find in Files / Find All)
+    GtkWidget*    _resultsPanel       = nullptr;  // the collapsible bottom panel
+    GtkWidget*    _resultsView        = nullptr;  // GtkTreeView
+    GtkListStore* _resultsStore       = nullptr;  // model
+    GtkWidget*    _resultsHeaderLabel = nullptr;  // dynamic title label
 
     // Phase 3 layout panes and panels
     GtkWidget* _outerHPaned  = nullptr;  // workspace | editor+right
@@ -203,7 +204,9 @@ private:
     // Results panel
     void showResultsPanel(bool show);
     void clearResults();
-    void addResult(const std::string& path, int line, const std::string& text);
+    void addResult   (const std::string& path, int line, const std::string& text);
+    void addResultRaw(const std::string& display, const std::string& path, int line);
+    void setResultsHeader(const std::string& text);
     static void cbResultRowActivated(GtkTreeView*, GtkTreePath*, GtkTreeViewColumn*, gpointer);
 
     // === Callbacks – view ===

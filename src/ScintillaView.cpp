@@ -216,6 +216,48 @@ int ScintillaView::findNext(const std::string& text,
     return pos;
 }
 
+std::vector<ScintillaView::MatchResult>
+ScintillaView::findAllMatches(const std::string& term,
+                               bool matchCase, bool wholeWord, bool regex)
+{
+    std::vector<MatchResult> results;
+    if (term.empty()) return results;
+
+    int docLen = getLength();
+    int start  = 0;
+
+    while (start <= docLen) {
+        int pos = findInTarget(term, start, docLen, matchCase, wholeWord, regex);
+        if (pos < 0) break;
+
+        int matchEnd = (int)send(SCI_GETTARGETEND);
+        int lineNum  = (int)send(SCI_LINEFROMPOSITION, pos);
+
+        // Fetch the full line text
+        int lineLen = (int)send(SCI_LINELENGTH, lineNum);
+        std::string lineText;
+        if (lineLen > 0) {
+            lineText.resize(lineLen + 1, '\0');
+            send(SCI_GETLINE, lineNum, (sptr_t)lineText.data());
+            lineText.resize(lineLen);
+        }
+        // Strip trailing CR/LF
+        while (!lineText.empty() &&
+               (lineText.back() == '\r' || lineText.back() == '\n'))
+            lineText.pop_back();
+        // Strip leading whitespace for display
+        size_t nonSpace = lineText.find_first_not_of(" \t");
+        if (nonSpace != std::string::npos) lineText = lineText.substr(nonSpace);
+
+        results.push_back({lineNum, lineText});
+
+        // Advance past the match (guard against zero-width matches)
+        start = (matchEnd > pos) ? matchEnd : pos + 1;
+    }
+
+    return results;
+}
+
 bool ScintillaView::replaceAndFindNext(const std::string& findText,
                                         const std::string& replaceText,
                                         bool matchCase, bool wholeWord,

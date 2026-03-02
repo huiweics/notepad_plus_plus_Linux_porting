@@ -25,6 +25,7 @@ public:
     // Returns total replacements made across all docs; called with (find, replace, matchCase, wholeWord, regex)
     using ReplaceAllDocsCb = std::function<int(const std::string&, const std::string&,
                                                bool, bool, bool)>;
+    using FindAllCb        = std::function<void(const FindOptions&)>;
 
     explicit FindReplaceDlg(GtkWindow* parent, GetViewCb getView);
     ~FindReplaceDlg();
@@ -38,12 +39,14 @@ public:
 
     const FindOptions& getOptions() const { return _opts; }
     void setReplaceAllDocsCb(ReplaceAllDocsCb cb) { _replaceAllDocsCb = cb; }
+    void setFindAllCb       (FindAllCb        cb) { _findAllCb        = cb; }
 
 private:
     GtkWindow* _parent = nullptr;
     GtkWidget* _dialog = nullptr;
     GetViewCb  _getView;
     ReplaceAllDocsCb _replaceAllDocsCb;
+    FindAllCb        _findAllCb;
 
     GtkWidget* _findEntry       = nullptr;
     GtkWidget* _replaceEntry    = nullptr;
@@ -66,6 +69,7 @@ private:
     GtkWidget* _selectAllBtn    = nullptr;
     GtkWidget* _bookmarkAllBtn  = nullptr;
     GtkWidget* _actionsFrame    = nullptr;   // shown in find mode only
+    GtkWidget* _findAllBtn      = nullptr;
 
     FindOptions _opts;
     bool        _replaceMode = false;
@@ -84,6 +88,7 @@ private:
     void doSelectAll();
     void doBookmarkAll();
     void doReplaceInAllDocs();
+    void doFindAll();
 
     static void onFindNext      (GtkButton*, gpointer);
     static void onFindPrev      (GtkButton*, gpointer);
@@ -97,6 +102,7 @@ private:
     static void onCountAll      (GtkButton*, gpointer);
     static void onSelectAll     (GtkButton*, gpointer);
     static void onBookmarkAll   (GtkButton*, gpointer);
+    static void onFindAll       (GtkButton*, gpointer);
     static gboolean onKey    (GtkWidget*, GdkEventKey*, gpointer);
     static gboolean onDelete (GtkWidget*, GdkEvent*,    gpointer);
 };

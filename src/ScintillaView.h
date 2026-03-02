@@ -5,6 +5,7 @@
 #include <Scintilla.h>
 #include <ScintillaWidget.h>
 #include <string>
+#include <vector>
 #include <functional>
 
 enum class LexerType {
@@ -61,6 +62,10 @@ public:
     // Find using SCI target API; returns match start pos or -1.
     int  findInTarget(const std::string& text, int startPos, int endPos,
                       bool matchCase, bool wholeWord, bool regex);
+
+    struct MatchResult { int line; std::string text; };
+    std::vector<MatchResult> findAllMatches(const std::string& term,
+                                             bool matchCase, bool wholeWord, bool regex);
     // Forward search from current caret; wraps if wrapAround.
     int  findNext(const std::string& text,
                   bool matchCase, bool wholeWord, bool regex, bool wrapAround);

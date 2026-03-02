@@ -129,11 +129,15 @@ void FindReplaceDlg::buildDialog() {
     gtk_box_pack_start(GTK_BOX(actRow), _selectAllBtn,    FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(actRow), _bookmarkAllBtn,  FALSE, FALSE, 0);
 
+    _findAllBtn = gtk_button_new_with_label("Find All in Current Doc");
+    gtk_box_pack_start(GTK_BOX(actRow), _findAllBtn, FALSE, FALSE, 0);
+
     g_signal_connect(_highlightAllBtn, "clicked", G_CALLBACK(onHighlightAll), this);
     g_signal_connect(_clearHlBtn,      "clicked", G_CALLBACK(onClearHL),      this);
     g_signal_connect(_countBtn,        "clicked", G_CALLBACK(onCountAll),     this);
     g_signal_connect(_selectAllBtn,    "clicked", G_CALLBACK(onSelectAll),    this);
     g_signal_connect(_bookmarkAllBtn,  "clicked", G_CALLBACK(onBookmarkAll),  this);
+    g_signal_connect(_findAllBtn,      "clicked", G_CALLBACK(onFindAll),      this);
 
     gtk_widget_show_all(_dialog);
     gtk_widget_hide(_dialog);
@@ -323,6 +327,15 @@ void FindReplaceDlg::doSelectAll() {
                     : "\"" + _opts.findText + "\" not found", n == 0);
 }
 
+void FindReplaceDlg::doFindAll() {
+    syncFromWidgets();
+    if (_opts.findText.empty()) { setStatus("Enter a search term first.", true); return; }
+    if (_findAllCb) {
+        _findAllCb(_opts);
+        setStatus("Results shown in the bottom panel.");
+    }
+}
+
 void FindReplaceDlg::doBookmarkAll() {
     syncFromWidgets();
     if (_opts.findText.empty()) return;
@@ -370,3 +383,4 @@ gboolean FindReplaceDlg::onDelete(GtkWidget*, GdkEvent*, gpointer d) {
     ((FindReplaceDlg*)d)->hide();
     return TRUE;
 }
+void FindReplaceDlg::onFindAll(GtkButton*, gpointer d) { ((FindReplaceDlg*)d)->doFindAll(); }
