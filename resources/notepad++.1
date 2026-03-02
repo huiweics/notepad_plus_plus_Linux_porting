@@ -1,0 +1,77 @@
+.TH NOTEPAD++ 1 "2026-02" "Notepad++ 8.7.5" "User Commands"
+.SH NAME
+notepad++ \- powerful GTK3 text editor
+.SH SYNOPSIS
+.B notepad++
+[\fIOPTIONS\fR] [\fIFILE\fR...]
+.SH DESCRIPTION
+.B notepad++
+is a feature\-rich text editor built on GTK3 and the Scintilla editing
+component. It provides syntax highlighting for 30+ programming languages,
+tabbed editing, find\-in\-files, macro recording, a plugin system, and more.
+.PP
+This is the Linux/GTK3 port of the original Windows Notepad++ application.
+.SH OPTIONS
+.TP
+.BI \-n " LINE"
+Open the first file at line number \fILINE\fR (1\-based).
+.TP
+.BI \-c " COL"
+Position the caret at column \fICOL\fR after jumping to the target line.
+.TP
+.B \-\-version
+Print version information and exit.
+.TP
+.B \-\-help
+Print a brief help message and exit.
+.SH FILES
+.TP
+.I ~/.config/notepad++/settings.conf
+Persistent application settings (window geometry, theme, tab width, \&...).
+.TP
+.I ~/.config/notepad++/session.conf
+List of open files saved on exit (used when \fIrestore session\fR is enabled).
+.TP
+.I ~/.config/notepad++/macros.conf
+Named macros recorded in the editor.
+.TP
+.I <exe\-dir>/plugins/*.so
+Plugin shared libraries loaded at startup.
+.SH KEYBOARD SHORTCUTS
+.TS
+l l.
+Ctrl+N	New file
+Ctrl+O	Open file
+Ctrl+S	Save file
+Ctrl+Shift+S	Save As
+Ctrl+W	Close tab
+Ctrl+Z / Ctrl+Y	Undo / Redo
+Ctrl+F	Find
+Ctrl+H	Find & Replace
+Ctrl+Shift+F	Find in Files
+F3 / Shift+F3	Find Next / Previous
+Ctrl+G	Go to Line
+Ctrl+D	Duplicate line
+Ctrl+Shift+L	Delete line
+Ctrl+/	Toggle comment
+Ctrl+F2	Toggle bookmark
+F2 / Shift+F2	Next / Previous bookmark
+Ctrl+Shift+R	Record macro
+Ctrl+Shift+P	Play back macro
+Ctrl+F5	Run external program
+Ctrl++/\-/0	Zoom in / out / reset
+.TE
+.SH EXAMPLES
+Open a file and jump to line 42:
+.PP
+.nf
+    notepad++ -n 42 /path/to/source.cpp
+.fi
+.SH SEE ALSO
+.BR gedit (1),
+.BR kate (1),
+.BR vim (1)
+.SH BUGS
+Report bugs at https://github.com/notepad-plus-plus/notepad-plus-plus/issues
+.SH AUTHOR
+Notepad++ Team. Linux port contributed by the community.
